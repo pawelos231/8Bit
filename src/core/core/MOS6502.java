@@ -1,7 +1,7 @@
 package core;
 
 public class MOS6502 {
-    //Registers
+    // Registers
     // Typically these are 8-bit. We store them in int with a mask (0xFF) 
     // to prevent overflow beyond 8 bits.
     private int accumulator; // A (Accumulator) main arithmetic register
@@ -197,6 +197,7 @@ public class MOS6502 {
                 programCounter = mask(programCounter + 1, 16);
                 return new AdressModeResult(addr, false);
             }
+
             case ZERO_PAGE -> {
                 int zpAddr = readByte(programCounter);
                 programCounter = mask(programCounter + 1, 16);
@@ -240,6 +241,7 @@ public class MOS6502 {
                 boolean crossedAbsY = ((absyAddr & 0xFF00) != (absyAddr & 0xFF00));
                 return new AdressModeResult(finalAddrY, crossedAbsY);
             }
+
             case ABSOLUTE_INDIRECT -> {
                 int pointerAddr = readWord(programCounter);
                 //simulate the bug
@@ -283,6 +285,7 @@ public class MOS6502 {
                 boolean crossed = (target & 0xFF00) != (programCounter & 0xFF00);
                 return new AdressModeResult(target, crossed);
             }
+            
             case IMPLIED, ACCUMULATOR -> {
                 return new AdressModeResult(0, false);
             }
@@ -1436,45 +1439,45 @@ public class MOS6502 {
         }
     }
 
-    public static void main(String[] args) {
-        MOS6502 cpu = new MOS6502();
-        cpu.initInstructions();
+    // public static void main(String[] args) {
+    //     MOS6502 cpu = new MOS6502();
+    //     cpu.initInstructions();
 
-        //reset vector
-        cpu.setMemory(0xFFFC, (byte)0x00);
-        cpu.setMemory(0xFFFD, (byte)0x80);
-
-
-        // byte[] demoProgram = {
-        //     (byte)0xA9, (byte)0x10,   // LDA #$10, this loads the accumulator with the value 0x10 = 16
-        //     (byte)0x69, (byte)0x05,   // ADC #$05, so add 5 to the accumulator
-        //     (byte)0xE8,          // INX - increment X register by one
-        //     (byte)0x00           // BRK - break
-        // };
-
-        byte[] demoProgram2 = {
-            (byte)0xA9, 0x0A,       // LDA #$0A   ; Załaduj do akumulatora wartość 0x0A (10 dziesiętnie)
-            (byte)0x18,             // CLC        ; Wyczyść flagę przeniesienia (na wszelki wypadek)
-            (byte)0x69, 0x05,       // ADC #$05   ; Dodaj 0x05 (5 dziesiętnie) do akumulatora (uwzględniając ewentualne przeniesienie)
-            (byte)0x8D, 0x00, 0x02, // STA $0200  ; Zapisz wartość z akumulatora do pamięci pod adresem 0x0200
-            (byte)0x00              // BRK        ; Zatrzymaj (Break)
-        };
+    //     //reset vector
+    //     cpu.setMemory(0xFFFC, (byte)0x00);
+    //     cpu.setMemory(0xFFFD, (byte)0x80);
 
 
-        cpu.loadProgram(demoProgram2, 0x8000);
+    //     // byte[] demoProgram = {
+    //     //     (byte)0xA9, (byte)0x10,   // LDA #$10, this loads the accumulator with the value 0x10 = 16
+    //     //     (byte)0x69, (byte)0x05,   // ADC #$05, so add 5 to the accumulator
+    //     //     (byte)0xE8,          // INX - increment X register by one
+    //     //     (byte)0x00           // BRK - break
+    //     // };
 
-        // reset the CPU
-        cpu.reset();
+    //     byte[] demoProgram2 = {
+    //         (byte)0xA9, 0x0A,       // LDA #$0A   ; Załaduj do akumulatora wartość 0x0A (10 dziesiętnie)
+    //         (byte)0x18,             // CLC        ; Wyczyść flagę przeniesienia (na wszelki wypadek)
+    //         (byte)0x69, 0x05,       // ADC #$05   ; Dodaj 0x05 (5 dziesiętnie) do akumulatora (uwzględniając ewentualne przeniesienie)
+    //         (byte)0x8D, 0x00, 0x02, // STA $0200  ; Zapisz wartość z akumulatora do pamięci pod adresem 0x0200
+    //         (byte)0x00              // BRK        ; Zatrzymaj (Break)
+    //     };
 
-        // run the program
-        cpu.run(10);
+
+    //     cpu.loadProgram(demoProgram2, 0x8000);
+
+    //     // reset the CPU
+    //     cpu.reset();
+
+    //     // run the program
+    //     cpu.run(10);
   
-        // print the state of the CPU
-        System.out.println("A = " + String.format("0x%02X", cpu.getAccumulator()));
-        System.out.println("X = " + String.format("0x%02X", cpu.getX()));
-        System.out.println("PC = " + String.format("0x%04X", cpu.getPC()));
-        System.out.println("Cycles = " + cpu.getCycles());
-    }
+    //     // print the state of the CPU
+    //     System.out.println("A = " + String.format("0x%02X", cpu.getAccumulator()));
+    //     System.out.println("X = " + String.format("0x%02X", cpu.getX()));
+    //     System.out.println("PC = " + String.format("0x%04X", cpu.getPC()));
+    //     System.out.println("Cycles = " + cpu.getCycles());
+    // }
 }   
 
 

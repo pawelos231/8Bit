@@ -434,49 +434,49 @@ public class Visualizer extends JFrame {
         return dumpMemory(0x0100, 0x100);
     }
 
-private void highlightCurrentInstruction() {
-    int pc = cpu.getPC(); // aktualna wartość Program Counter
-    memoryDumpArea.getHighlighter().removeAllHighlights();
+    // the method highlights the current instruction in the memory dump area
+    // TODO: when the memory dump area is resized and split into multiple lines, the highlighting doesn't work properly
+    private void highlightCurrentInstruction() {
+        int pc = cpu.getPC(); // aktualna wartość Program Counter
+        memoryDumpArea.getHighlighter().removeAllHighlights();
 
-    try {
-        int lineCount = memoryDumpArea.getLineCount();
+        try {
+            int lineCount = memoryDumpArea.getLineCount();
 
-        for (int i = 0; i < lineCount; i++) {
-            int startOffset = memoryDumpArea.getLineStartOffset(i);
-            int endOffset   = memoryDumpArea.getLineEndOffset(i);
-            
-            String line = memoryDumpArea.getText().substring(startOffset, endOffset).trim();
-            if (line.length() < 5) {
-                continue; 
+            for (int i = 0; i < lineCount; i++) {
+                int startOffset = memoryDumpArea.getLineStartOffset(i);
+                int endOffset   = memoryDumpArea.getLineEndOffset(i);
+                
+                String line = memoryDumpArea.getText().substring(startOffset, endOffset).trim();
+                if (line.length() < 5) {
+                    continue; 
+                }
+
+                String addressHex = line.substring(0, 4);
+                int lineStartAddr = Integer.parseInt(addressHex, 16);
+
+                if (pc >= lineStartAddr && pc <= (lineStartAddr + 15)) {
+                    int byteOffset = pc - lineStartAddr;
+
+                    int highlightStart = startOffset + 6 + (3 * byteOffset);
+
+                    int highlightEnd = highlightStart + 5;
+
+                    memoryDumpArea.getHighlighter().addHighlight(
+                        highlightStart,
+                        highlightEnd,
+                        new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
+                    );
+
+                    break;
+                }
             }
+        } catch (BadLocationException | NumberFormatException e) {
+            e.printStackTrace();
+        };
+    }
 
-            String addressHex = line.substring(0, 4);
-            int lineStartAddr = Integer.parseInt(addressHex, 16);
-
-            if (pc >= lineStartAddr && pc <= (lineStartAddr + 15)) {
-                int byteOffset = pc - lineStartAddr;
-
-                int highlightStart = startOffset + 6 + (3 * byteOffset);
-
-                int highlightEnd = highlightStart + 5;
-
-                memoryDumpArea.getHighlighter().addHighlight(
-                    highlightStart,
-                    highlightEnd,
-                    new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
-                );
-
-                break;
-            }
-        }
-    } catch (BadLocationException | NumberFormatException e) {
-        e.printStackTrace();
-    };
-}
-
-
-    public static void main(String[] args) {
-        core.MOS6502 cpu = new core.MOS6502();
+    public void visualize() {
         cpu.initInstructions();
 
         // Reset vector on $8000
