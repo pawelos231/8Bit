@@ -8,23 +8,23 @@ public class MOS6502 {
     private int xRegister; //X (Index Register) used for counters and memory pointers, can be used as iterator in loops
     private int yRegister; //Y (Index Register) used for counters and memory pointers, can be used as iterator in loops
     private int stackPointer; //SP, stack is located at the end of the memory, 0x0100 - 0x01FF it is used to store return addresses and processor state
-    private int statusRegister; //Flags
+    private int statusRegister; // Holds the flags
     private int programCounter; // PC, points to the current instruction
 
 
     //flags essentialy tells us how an arithmetic or logical operation turned out
-    private static final int FLAG_CARRY = 0x01; // set if the last operation caused an overflow from bit 7
-    private static final int FLAG_ZERO = 0x02; // set if the result of the operation is zero
-    private static final int FLAG_INTERRUPT = 0x04; // disable interrupts 
-    private static final int FLAG_DECIMAL = 0x08; // set if the CPU is in BCD mode
-    private static final int FLAG_BREAK = 0x10; // set if a software interrupt (BRK instruction) was executed
-    private static final int FLAG_UNUSED = 0x20; // unused, always 1
-    private static final int FLAG_OVERFLOW = 0x40; // set if the result of the operation is too large a positive number or too small a negative number (excluding the sign bit) to fit in the destination
-    private static final int FLAG_NEGATIVE = 0x80; // set if the result of the operation is negative
+    public static final int FLAG_CARRY = 0x01; // set if the last operation caused an overflow from bit 7
+    public static final int FLAG_ZERO = 0x02; // set if the result of the operation is zero
+    public static final int FLAG_INTERRUPT = 0x04; // disable interrupts 
+    public static final int FLAG_DECIMAL = 0x08; // set if the CPU is in BCD mode
+    public static final int FLAG_BREAK = 0x10; // set if a software interrupt (BRK instruction) was executed
+    public static final int FLAG_UNUSED = 0x20; // unused, always 1
+    public static final int FLAG_OVERFLOW = 0x40; // set if the result of the operation is too large a positive number or too small a negative number (excluding the sign bit) to fit in the destination
+    public static final int FLAG_NEGATIVE = 0x80; // set if the result of the operation is negative
 
     private long cycles = 0; //Number of cycles the CPU has executed
 
-    private byte[] memory = new byte[64 * 1024]; //64KB of memory
+    private static final byte[] memory = new byte[64 * 1024]; //64KB of memory
 
     //addressing mode is a way to tell how and where we fetch the operand for the instruction
     private enum AddressingMode {
@@ -50,13 +50,13 @@ public class MOS6502 {
     }
 
     //REGISTER GETTERS
-    public int getAccumulator() { return accumulator & 0xFF; }
-    public int getX() { return xRegister & 0xFF; }
-    public int getY() { return yRegister & 0xFF; }
-    public int getPC() { return programCounter & 0xFFFF; }
-    public int getS()  { return stackPointer & 0xFF; }
-    public int getP()  { return statusRegister & 0xFF; }
-    public long getCycles() { return cycles; }
+    public int getAccumulator() { return accumulator & 0xFF; }      // get the value of the accumulator
+    public int getX() { return xRegister & 0xFF; }                  // get the value of the X register
+    public int getY() { return yRegister & 0xFF; }                  // get the value of the Y register
+    public int getPC() { return programCounter & 0xFFFF; }          // get program counter, 16 bits, whole address
+    public int getS()  { return stackPointer & 0xFF; }              // get the value of the stack pointer
+    public int getP()  { return statusRegister & 0xFF; }            // get the value of the status register
+    public long getCycles() { return cycles; }                      // get the number of cycles
 
     public void reset() {
         setFlag(FLAG_INTERRUPT, true); // we set the flag to true because we are not in the middle of an interrupt
@@ -73,6 +73,12 @@ public class MOS6502 {
         programCounter = (high << 8) | low;
 
         cycles = 0; // zerujemy licznik cykli
+    }
+
+    public void clearMemory() {
+        for (int i = 0; i < memory.length; i++) {
+            memory[i] = 0;
+        }
     }
 
     //interrupt request - IRQ is a maskable interrupt that can be disabled
@@ -173,7 +179,7 @@ public class MOS6502 {
     }
 
 
-    private class AdressModeResult {
+    public class AdressModeResult {
         public int address;
         public boolean pageBoundaryCrossed;
 
@@ -186,42 +192,40 @@ public class MOS6502 {
 
     private AdressModeResult getAdressByMode(AddressingMode mode) {
         switch (mode) {
-            //does not need to use any operands, instruction works immediately
-            case IMMEDIATE: {
+            case IMMEDIATE -> {
                 int addr = programCounter;
                 programCounter = mask(programCounter + 1, 16);
                 return new AdressModeResult(addr, false);
             }
-
-            //zero page addressing mode, only uses the low byte of the address (8 bits), making the instruction faster
-            case ZERO_PAGE: {
+            case ZERO_PAGE -> {
                 int zpAddr = readByte(programCounter);
                 programCounter = mask(programCounter + 1, 16);
                 return new AdressModeResult(zpAddr, false);
             }
 
-            case ZERO_PAGE_X: {
+            case ZERO_PAGE_X -> {
                 int zpxAddr = readByte(programCounter);
                 programCounter = mask(programCounter + 1, 16);
                 int finalAddr = mask(zpxAddr + xRegister , 8);
-                return new AdressModeResult(zpxAddr, false);
+                return new AdressModeResult(finalAddr, false);
             }
 
 
-            case ZERO_PAGE_Y: {
+            case ZERO_PAGE_Y -> {
                 int zpyAddr = readByte(programCounter);
                 programCounter = mask(programCounter + 1, 16);
                 int finalAddrY = mask(zpyAddr + yRegister , 8);
-                return new AdressModeResult(zpyAddr, false);
+                return new AdressModeResult(finalAddrY, false);
             }
 
-            case ABSOLUTE: {
+            case ABSOLUTE -> {
+                System.out.printf("PC: %04X\n", programCounter);
                 int absAddr = readWord(programCounter);
                 programCounter = mask(programCounter + 2, 16);
                 return new AdressModeResult(absAddr, false);
             }
 
-            case ABSOLUTE_X: {
+            case ABSOLUTE_X -> {
                 int absxAddr = readWord(programCounter);
                 programCounter = mask(programCounter + 2, 16);
                 int finalAddrX = mask(absxAddr + xRegister, 16);
@@ -229,17 +233,14 @@ public class MOS6502 {
                 return new AdressModeResult(finalAddrX, crossedAbsX);
             }
 
-            case ABSOLUTE_Y: {
+            case ABSOLUTE_Y -> {
                 int absyAddr = readWord(programCounter);
                 programCounter = mask(programCounter + 2, 16);
                 int finalAddrY = mask(absyAddr + yRegister, 16);
                 boolean crossedAbsY = ((absyAddr & 0xFF00) != (absyAddr & 0xFF00));
                 return new AdressModeResult(finalAddrY, crossedAbsY);
             }
-
-            //bug in the 6502
-            //if the pointer is on the edge of the page eg #xxFF then high byte reads from $xx00 
-            case ABSOLUTE_INDIRECT: {
+            case ABSOLUTE_INDIRECT -> {
                 int pointerAddr = readWord(programCounter);
                 //simulate the bug
                 pointerAddr = pointerAddr & 0xFF00 | ((pointerAddr + 1) & 0x00FF);
@@ -248,7 +249,7 @@ public class MOS6502 {
                 return new AdressModeResult(finalAddrIndirect, false);
             }
 
-            case INDIRECT_X: {
+            case INDIRECT_X -> {
                 // ($nn,X)
                 int zpIndirectIndexedAddr = readByte(programCounter);
                 programCounter = (programCounter + 1) & 0xFFFF;
@@ -259,7 +260,7 @@ public class MOS6502 {
                 return new AdressModeResult(finalAddr, false);
             }
 
-            case INDIRECT_Y: {
+            case INDIRECT_Y -> {
                 // ($nn),Y
                 int zpIndexedIndirectAddr = readByte(programCounter);
                 programCounter = (programCounter + 1) & 0xFFFF;
@@ -271,7 +272,7 @@ public class MOS6502 {
                 return new AdressModeResult(finalAddr, crossed);
             }
 
-            case RELATIVE : {
+            case RELATIVE -> {
                 int offset = readByte(programCounter);
                 programCounter = mask(programCounter + 1, 16);  
                 if((offset & 0x80) != 0) {
@@ -282,12 +283,15 @@ public class MOS6502 {
                 boolean crossed = (target & 0xFF00) != (programCounter & 0xFF00);
                 return new AdressModeResult(target, crossed);
             }
-
-            //does not have an actual address, operations on registers
-            case IMPLIED:
-            case ACCUMULATOR:
+            case IMPLIED, ACCUMULATOR -> {
                 return new AdressModeResult(0, false);
+            }
         }
+        //does not need to use any operands, instruction works immediately
+        //zero page addressing mode, only uses the low byte of the address (8 bits), making the instruction faster
+        //bug in the 6502
+        //if the pointer is on the edge of the page eg #xxFF then high byte reads from $xx00
+        //does not have an actual address, operations on registers
         return null;
     }
 
@@ -313,7 +317,7 @@ public class MOS6502 {
 
     private final Instruction[] instructions = new Instruction[256];
 
-    private void initInstructions() {
+    public void initInstructions() {
 
         /*********************************************************************************
         /*                          LOAD AND STORE INSTRUCTIONS 
@@ -419,7 +423,358 @@ public class MOS6502 {
         instructions[0x91] =  new Instruction("STA", AddressingMode.INDIRECT_Y, 6, (addrModeRes) -> {
             writeByte(addrModeRes.address, accumulator);
         });
+        
+        /* LDX instructions */
+        instructions[0xA2] = new Instruction("LDX", AddressingMode.IMMEDIATE, 2, (amr) -> {
+            xRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(xRegister);
+        });
 
+        instructions[0xA6] = new Instruction("LDX", AddressingMode.ZERO_PAGE, 3, (amr) -> {
+            xRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        instructions[0xB6] = new Instruction("LDX", AddressingMode.ZERO_PAGE_Y, 4, (amr) -> {
+            xRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        instructions[0xAE] = new Instruction("LDX", AddressingMode.ABSOLUTE, 4, (amr) -> {
+            xRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        instructions[0xBE] = new Instruction("LDX", AddressingMode.ABSOLUTE_Y, 4, (amr) -> {
+            xRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        /*LDY instructions */
+        instructions[0xA0] = new Instruction("LDY", AddressingMode.IMMEDIATE, 2, (amr) -> {
+            yRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(yRegister);
+        });
+
+        instructions[0xA4] = new Instruction("LDY", AddressingMode.ZERO_PAGE, 3, (amr) -> {
+            yRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(yRegister);
+        });
+        
+        instructions[0xB4] = new Instruction("LDY", AddressingMode.ZERO_PAGE_X, 4, (amr) -> {
+            yRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(yRegister);
+        });
+
+        instructions[0xAC] = new Instruction("LDY", AddressingMode.ABSOLUTE, 4, (amr) -> {
+            yRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(yRegister);
+        });
+
+        instructions[0xBC] = new Instruction("LDY", AddressingMode.ABSOLUTE_X, 4, (amr) -> {
+            yRegister = readByte(amr.address);
+            updateZeroAndNegativeFlags(yRegister);
+        });
+
+        // STY
+        instructions[0x84] = new Instruction("STY", AddressingMode.ZERO_PAGE, 3, (amr) -> {
+            writeByte(amr.address, yRegister);
+        });
+
+        instructions[0x94] = new Instruction("STY", AddressingMode.ZERO_PAGE_X, 4, (amr) -> {
+            writeByte(amr.address, yRegister);
+        });
+
+        instructions[0x8C] = new Instruction("STY", AddressingMode.ABSOLUTE, 4, (amr) -> {
+            writeByte(amr.address, yRegister);
+        });
+
+
+        /*********************************************************************************
+        /*           Moving data between registers: TXA, TAX, TYA, TAY, TSX, TXS
+        /*********************************************************************************
+
+        /* TXA - transfer X to A */
+        instructions[0x8A] = new Instruction("TXA", AddressingMode.IMPLIED, 2, (amr) -> {
+            accumulator = xRegister & 0xFF;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // TAX - transfer A to X
+        instructions[0xAA] = new Instruction("TAX", AddressingMode.IMPLIED, 2, (amr) -> {
+            xRegister = accumulator & 0xFF;
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        // TYA - transfer Y to A
+        instructions[0x98] = new Instruction("TYA", AddressingMode.IMPLIED, 2, (amr) -> {
+            accumulator = yRegister & 0xFF;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+        
+        // TAY - transfer A to Y
+        instructions[0xA8] = new Instruction("TAY", AddressingMode.IMPLIED, 2, (amr) -> {
+            yRegister = accumulator & 0xFF;
+            updateZeroAndNegativeFlags(yRegister);
+        });
+
+        // TSX - transfer stack pointer to X
+        instructions[0xBA] = new Instruction("TSX", AddressingMode.IMPLIED, 2, (amr) -> {
+            xRegister = stackPointer & 0xFF;
+            updateZeroAndNegativeFlags(xRegister);
+        });
+
+        // TXS - transfer X to stack pointer
+        instructions[0x9A] = new Instruction("TXS", AddressingMode.IMPLIED, 2, (amr) -> {
+            stackPointer = xRegister & 0xFF;
+        });
+
+        /*********************************************************************************
+        /*                     FLAGS: CLI, SEI, CLD, SED, CLV, SEC
+        /*********************************************************************************/
+
+        // CLI - Clear Interrupt Disable
+        instructions[0x58] = new Instruction("CLI", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_INTERRUPT, false);
+        });
+
+        // SEI - Set Interrupt Disable
+        instructions[0x78] = new Instruction("SEI", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_INTERRUPT, true);
+        });
+
+        // CLD - Clear Decimal Mode
+        instructions[0xD8] = new Instruction("CLD", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_DECIMAL, false);
+        });
+
+        // SED - Set Decimal Mode
+        instructions[0xF8] = new Instruction("SED", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_DECIMAL, true);
+        });
+
+        // CLV - Clear Overflow
+        instructions[0xB8] = new Instruction("CLV", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_OVERFLOW, false);
+        });
+
+        // SEC - Set Carry
+        instructions[0x38] = new Instruction("SEC", AddressingMode.IMPLIED, 2, (amr) -> {
+            setFlag(FLAG_CARRY, true);
+        });
+
+
+        /*********************************************************************************
+        /*                        STACK OPERATIONS: PHP, PLP, RTI, RTS
+        /*********************************************************************************/
+
+        // PHP - Push Processor Status
+        instructions[0x08] = new Instruction("PHP", AddressingMode.IMPLIED, 3, (amr) -> {
+            int flags = (statusRegister | FLAG_BREAK | FLAG_UNUSED) & 0xFF;
+            pushByte(flags);
+        });
+
+        // PLP - Pull Processor Status
+        instructions[0x28] = new Instruction("PLP", AddressingMode.IMPLIED, 4, (amr) -> {
+            int flags = popByte() & 0xFF;
+            flags = (flags & ~FLAG_UNUSED) | FLAG_UNUSED; 
+            statusRegister = flags;
+        });
+
+        // RTI - Return from Interrupt
+        instructions[0x40] = new Instruction("RTI", AddressingMode.IMPLIED, 6, (amr) -> {
+            int flags = popByte() & 0xFF;
+            flags = (flags & ~FLAG_UNUSED) | FLAG_UNUSED; 
+            statusRegister = flags;
+            int lo = popByte();
+            int hi = popByte();
+            programCounter = ((hi << 8) | lo) & 0xFFFF;
+        });
+
+        //RTS - Return from Subroutine
+        instructions[0x60] = new Instruction("RTS", AddressingMode.IMPLIED, 6, (amr) -> {
+            int lo = popByte(); 
+            int hi = popByte();
+            programCounter = (((hi << 8) | lo) + 1) & 0xFFFF;
+        });
+        
+
+        /*********************************************************************************
+        /*                   PRZESUNIĘCIA / ROTACJE: ASL, LSR, ROL, ROR
+        /*********************************************************************************
+
+        /*ASL - Arithmetic Shift Left */
+        instructions[0x0A] = new Instruction("ASL", AddressingMode.ACCUMULATOR, 2, (amr) -> {
+            int val = mask(accumulator, 8);    //we mask to 8 bits to prevent overflow
+            setFlag(FLAG_CARRY, (val & 0x80) != 0); //we set the carry flag to the 7th bit
+            val = mask(val << 1, 8);
+            accumulator = val;
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x06] = new Instruction("ASL", AddressingMode.ZERO_PAGE, 5, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = (val << 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x16] = new Instruction("ASL", AddressingMode.ZERO_PAGE_X, 6, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = (val << 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x0E] = new Instruction("ASL", AddressingMode.ABSOLUTE, 6, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = (val << 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x1E] = new Instruction("ASL", AddressingMode.ABSOLUTE_X, 7, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = (val << 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        /* LSR - Logical Shift Right */
+        instructions[0x4A] = new Instruction("LSR", AddressingMode.ACCUMULATOR, 2, (amr) -> {
+            int val = accumulator & 0xFF;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = (val >> 1) & 0xFF;
+            accumulator = val;
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x46] = new Instruction("LSR", AddressingMode.ZERO_PAGE, 5, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = (val >> 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+        instructions[0x56] = new Instruction("LSR", AddressingMode.ZERO_PAGE_X, 6, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = (val >> 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x4E] = new Instruction("LSR", AddressingMode.ABSOLUTE, 6, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = (val >> 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x5E] = new Instruction("LSR", AddressingMode.ABSOLUTE_X, 7, (amr) -> {
+            int val = readByte(amr.address);
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = (val >> 1) & 0xFF;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        //ROL - Rotate Left, this instruction shifts all bits left by one, the carry flag is shifted into the least significant bit
+        instructions[0x2A] = new Instruction("ROL", AddressingMode.ACCUMULATOR, 2, (amr) -> {
+            int val = mask(accumulator, 8);
+            int oldCarry = getFlag(FLAG_CARRY) ? 1 : 0;
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = ((val << 1) & 0xFF) | oldCarry;
+            accumulator = val & 0xFF;
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x26] = new Instruction("ROL", AddressingMode.ZERO_PAGE, 5, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 1 : 0;
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = ((val << 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x36] = new Instruction("ROL", AddressingMode.ZERO_PAGE_X, 6, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 1 : 0;
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = ((val << 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x2E] = new Instruction("ROL", AddressingMode.ABSOLUTE, 6, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 1 : 0;
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = ((val << 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x3E] = new Instruction("ROL", AddressingMode.ABSOLUTE_X, 7, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 1 : 0;
+            setFlag(FLAG_CARRY, (val & 0x80) != 0);
+            val = ((val << 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        //ROR - Rotate Right, this instruction shifts all bits right by one, the carry flag is shifted into the most significant bit
+        instructions[0x6A] = new Instruction("ROR", AddressingMode.ACCUMULATOR, 2, (amr) -> {
+            int val = accumulator & 0xFF;
+            int oldCarry = getFlag(FLAG_CARRY) ? 0x80 : 0;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = ((val >> 1) & 0xFF) | oldCarry;
+            accumulator = val & 0xFF;
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x66] = new Instruction("ROR", AddressingMode.ZERO_PAGE, 5, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 0x80 : 0;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = ((val >> 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x76] = new Instruction("ROR", AddressingMode.ZERO_PAGE_X, 6, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 0x80 : 0;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = ((val >> 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x6E] = new Instruction("ROR", AddressingMode.ABSOLUTE, 6, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 0x80 : 0;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = ((val >> 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
+
+        instructions[0x7E] = new Instruction("ROR", AddressingMode.ABSOLUTE_X, 7, (amr) -> {
+            int val = readByte(amr.address);
+            int oldCarry = getFlag(FLAG_CARRY) ? 0x80 : 0;
+            setFlag(FLAG_CARRY, (val & 0x01) != 0);
+            val = ((val >> 1) & 0xFF) | oldCarry;
+            writeByte(amr.address, val);
+            updateZeroAndNegativeFlags(val);
+        });
 
         /*********************************************************************************
         /*                     ARITHEMITC AND LOGICAL INSTRUCTIONS 
@@ -428,7 +783,7 @@ public class MOS6502 {
         /*ADC instructions */
 
         //ADC - add with carry -> opcode 0x69
-        instructions[0x69] = new Instruction("ADC", AddressingMode.ABSOLUTE , 4, (addrModeRes) -> {
+        instructions[0x69] = new Instruction("ADC", AddressingMode.IMMEDIATE , 4, (addrModeRes) -> {
             int value = readByte(addrModeRes.address);
             adc(value);
         });
@@ -722,6 +1077,251 @@ public class MOS6502 {
         instructions[0x4C] = new Instruction("JMP", AddressingMode.ABSOLUTE, 3, (addrModeRes) -> {
             programCounter = addrModeRes.address;
         });
+
+
+        /* ORA instructions */
+
+        // ORA - Logical OR -> opcode 0x09
+        instructions[0x09] = new Instruction("ORA", AddressingMode.IMMEDIATE, 2, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x05
+        instructions[0x05] = new Instruction("ORA", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x15
+        instructions[0x15] = new Instruction("ORA", AddressingMode.ZERO_PAGE_X, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x0D
+        instructions[0x0D] = new Instruction("ORA", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x1D
+        instructions[0x1D] = new Instruction("ORA", AddressingMode.ABSOLUTE_X, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x19
+        instructions[0x19] = new Instruction("ORA", AddressingMode.ABSOLUTE_Y, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x01
+        instructions[0x01] = new Instruction("ORA", AddressingMode.INDIRECT_X, 6, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // ORA - Logical OR -> opcode 0x11
+        instructions[0x11] = new Instruction("ORA", AddressingMode.INDIRECT_Y, 5, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator |= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        /* EOR instructions */
+
+        // EOR - Exclusive OR -> opcode 0x49
+        instructions[0x49] = new Instruction("EOR", AddressingMode.IMMEDIATE, 2, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x45
+        instructions[0x45] = new Instruction("EOR", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x55
+        instructions[0x55] = new Instruction("EOR", AddressingMode.ZERO_PAGE_X, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x4D
+        instructions[0x4D] = new Instruction("EOR", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x5D
+        instructions[0x5D] = new Instruction("EOR", AddressingMode.ABSOLUTE_X, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x59
+        instructions[0x59] = new Instruction("EOR", AddressingMode.ABSOLUTE_Y, 4, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x41
+        instructions[0x41] = new Instruction("EOR", AddressingMode.INDIRECT_X, 6, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        // EOR - Exclusive OR -> opcode 0x51
+        instructions[0x51] = new Instruction("EOR", AddressingMode.INDIRECT_Y, 5, (addrModeRes) -> {
+            int value = readByte(addrModeRes.address);
+            accumulator ^= value;
+            updateZeroAndNegativeFlags(accumulator);
+        });
+
+        /* CMP instructions */
+
+        // CMP - Compare Accumulator -> opcode 0xC9
+        instructions[0xC9] = new Instruction("CMP", AddressingMode.IMMEDIATE, 2, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xC5
+        instructions[0xC5] = new Instruction("CMP", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xD5
+        instructions[0xD5] = new Instruction("CMP", AddressingMode.ZERO_PAGE_X, 4, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xCD
+        instructions[0xCD] = new Instruction("CMP", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xDD
+        instructions[0xDD] = new Instruction("CMP", AddressingMode.ABSOLUTE_X, 4, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xD9
+        instructions[0xD9] = new Instruction("CMP", AddressingMode.ABSOLUTE_Y, 4, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xC1
+        instructions[0xC1] = new Instruction("CMP", AddressingMode.INDIRECT_X, 6, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        // CMP - Compare Accumulator -> opcode 0xD1
+        instructions[0xD1] = new Instruction("CMP", AddressingMode.INDIRECT_Y, 5, (addrModeRes) -> {
+            compare(accumulator, readByte(addrModeRes.address));
+        });
+
+        /* CPX instructions */
+
+        // CPX - Compare X Register -> opcode 0xE0
+        instructions[0xE0] = new Instruction("CPX", AddressingMode.IMMEDIATE, 2, (addrModeRes) -> {
+            compare(xRegister, readByte(addrModeRes.address));
+        });
+
+        // CPX - Compare X Register -> opcode 0xE4
+        instructions[0xE4] = new Instruction("CPX", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            compare(xRegister, readByte(addrModeRes.address));
+        });
+
+        // CPX - Compare X Register -> opcode 0xEC
+        instructions[0xEC] = new Instruction("CPX", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            compare(xRegister, readByte(addrModeRes.address));
+        });
+
+        /* CPY instructions */
+
+        // CPY - Compare Y Register -> opcode 0xC0
+        instructions[0xC0] = new Instruction("CPY", AddressingMode.IMMEDIATE, 2, (addrModeRes) -> {
+            compare(yRegister, readByte(addrModeRes.address));
+        });
+
+        // CPY - Compare Y Register -> opcode 0xC4
+        instructions[0xC4] = new Instruction("CPY", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            compare(yRegister, readByte(addrModeRes.address));
+        });
+
+        // CPY - Compare Y Register -> opcode 0xCC
+        instructions[0xCC] = new Instruction("CPY", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            compare(yRegister, readByte(addrModeRes.address));
+        });
+
+        /* BIT instructions */
+
+        // BIT - Test Bits -> opcode 0x24
+        instructions[0x24] = new Instruction("BIT", AddressingMode.ZERO_PAGE, 3, (addrModeRes) -> {
+            doBIT(readByte(addrModeRes.address));
+        });
+
+        // BIT - Test Bits -> opcode 0x2C
+        instructions[0x2C] = new Instruction("BIT", AddressingMode.ABSOLUTE, 4, (addrModeRes) -> {
+            doBIT(readByte(addrModeRes.address));
+        });
+
+        /* JSR - Jump to Subroutine -> opcode 0x20 */
+        instructions[0x20] = new Instruction("JSR", AddressingMode.ABSOLUTE, 6, (addrModeRes) -> {
+            // Push (PC - 1) to stack
+            pushWord(programCounter - 1);
+            // Jump to subroutine address
+            programCounter = addrModeRes.address;
+        });
+
+
+        //ILLEGAL OPCODES - this are the opcodes that are not supported by the 6502 documentation
+
+        /* KIL - Kill the CPU */
+        instructions[0x02] = new Instruction("KIL", AddressingMode.IMPLIED, 1, (addrModeRes) -> {
+            //do nothing
+        });
+
+    }
+
+    /**
+     * Porównuje registerValue z value, ustawia Carry jeśli registerValue >= value,
+     * ustawia Zero i Negative na podstawie (registerValue - value).
+     */
+    private void compare(int register, int value) {
+        int result = register - value;
+        setFlag(FLAG_CARRY, register >= value);
+        updateZeroAndNegativeFlags(result);
+    }
+
+    /**
+     * W BIT testujemy bity w operandzie (wartość z pamięci) wobec akumulatora:
+     *  - Z flag -> (A & M) == 0 ?
+     *  - N flag -> bit7 of M
+     *  - V flag -> bit6 of M
+     */
+    private void doBIT(int operand) {
+        int temp = (accumulator & operand) & 0xFF;
+        setFlag(FLAG_ZERO, (temp == 0));
+        setFlag(FLAG_NEGATIVE, (operand & 0x80) != 0);
+        setFlag(FLAG_OVERFLOW, (operand & 0x40) != 0);
     }
 
     private void adc(int value) {
@@ -766,6 +1366,7 @@ public class MOS6502 {
         boolean overflow = (~(accumulator ^ value) & (accumulator ^ sum) & 0x80) > 0;
         setFlag(FLAG_OVERFLOW, overflow);
         accumulator = sum & 0xFF;
+
         updateZeroAndNegativeFlags(accumulator);
     }
 
@@ -813,12 +1414,20 @@ public class MOS6502 {
              return;
         }
 
+        if ((statusRegister & FLAG_BREAK) != 0) {
+            System.out.println("Break flag is set");
+            return;
+        }
+
         AdressModeResult amr = getAdressByMode(instruction.mode);
+        // System.out.printf("Executing %s at 0x%04X and program counter: 0x%04X \n", instruction.name, amr.address, programCounter);
+
 
         //execute the instruction
         instruction.executor.execute(amr);
 
         cycles += instruction.baseCycles;
+        System.out.printf("Cycles: %d, Instruction name: %s\n", cycles, instruction.name);
     }   
 
     public void loadProgram(byte[] program, int startAddress) {
@@ -836,14 +1445,23 @@ public class MOS6502 {
         cpu.setMemory(0xFFFD, (byte)0x80);
 
 
-        byte[] demoProgram = {
-            (byte)0xA9, 0x10,   // LDA #$10
-            (byte)0x69, 0x05,    // ADC #$05
-            (byte)0xE8,          // INX
-            (byte)0x00           // BRK
+        // byte[] demoProgram = {
+        //     (byte)0xA9, (byte)0x10,   // LDA #$10, this loads the accumulator with the value 0x10 = 16
+        //     (byte)0x69, (byte)0x05,   // ADC #$05, so add 5 to the accumulator
+        //     (byte)0xE8,          // INX - increment X register by one
+        //     (byte)0x00           // BRK - break
+        // };
+
+        byte[] demoProgram2 = {
+            (byte)0xA9, 0x0A,       // LDA #$0A   ; Załaduj do akumulatora wartość 0x0A (10 dziesiętnie)
+            (byte)0x18,             // CLC        ; Wyczyść flagę przeniesienia (na wszelki wypadek)
+            (byte)0x69, 0x05,       // ADC #$05   ; Dodaj 0x05 (5 dziesiętnie) do akumulatora (uwzględniając ewentualne przeniesienie)
+            (byte)0x8D, 0x00, 0x02, // STA $0200  ; Zapisz wartość z akumulatora do pamięci pod adresem 0x0200
+            (byte)0x00              // BRK        ; Zatrzymaj (Break)
         };
 
-        cpu.loadProgram(demoProgram, 0x8000);
+
+        cpu.loadProgram(demoProgram2, 0x8000);
 
         // reset the CPU
         cpu.reset();
@@ -856,17 +1474,19 @@ public class MOS6502 {
         System.out.println("X = " + String.format("0x%02X", cpu.getX()));
         System.out.println("PC = " + String.format("0x%04X", cpu.getPC()));
         System.out.println("Cycles = " + cpu.getCycles());
-
     }
 }   
 
 
 /*
- * Notatka dla siebie:
+ * Notatki dla siebie:
  * MOS 6502 ma rozne warunki które wpływają na liczbe cykli,
  * 1. Page boundary crossed - gdy operacja przechodzi przez granice strony
  * 2. Branch taken - gdy skok jest wykonywany
  * 3. Specjalne warunki dla niektórych instrukcji: Takie jak błąd przekręcenia strony w JMP (Indirect).
  * 
  * Upewnić się że wszystkie inkrementacje i dekrementacje są poprawne
+ * 
+ * W intstrukcji RTI Przed przejściem do rutyny obsługi przerwania, 
+ * procesor automatycznie zapisuje aktualny programCounter oraz rejestr statusu na stosie. Dzięki temu wie, gdzie wrócić po zakończeniu obsługi przerwania.
  */
