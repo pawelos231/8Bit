@@ -28,7 +28,7 @@ public class MOS6502 {
 
     //addressing mode is a way to tell how and where we fetch the operand for the instruction
     private enum AddressingMode {
-        IMMEDIATE, // #$nn
+        IMMEDIATE, // #$nn,
         ZERO_PAGE, // $nn
         ZERO_PAGE_X, // $nn,X, add the X register to the address and read the value from the zero page
         ZERO_PAGE_Y, // $nn,Y add the Y register to the address and read the value from the zero page
@@ -285,7 +285,7 @@ public class MOS6502 {
                 boolean crossed = (target & 0xFF00) != (programCounter & 0xFF00);
                 return new AdressModeResult(target, crossed);
             }
-            
+
             case IMPLIED, ACCUMULATOR -> {
                 return new AdressModeResult(0, false);
             }
