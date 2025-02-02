@@ -72,10 +72,17 @@ public class MOS6502 {
         int high = readByte(0xFFFD);
         programCounter = (high << 8) | low;
 
-        cycles = 0; // zerujemy licznik cykli
+        cycles = 0; // reset the number of cycles
+        clearRegisters(); // clear the registers
     }
 
-    public void clearMemory() {
+    private void clearRegisters() {
+        accumulator = 0;
+        xRegister = 0;
+        yRegister = 0;
+    }
+
+    private void clearMemory() {
         for (int i = 0; i < memory.length; i++) {
             memory[i] = 0;
         }
@@ -1412,7 +1419,7 @@ public class MOS6502 {
         Instruction instruction = instructions[opcode];
 
         if (instruction == null) {
-             System.err.printf("Niezaimplementowany opcode: 0x%02X, PC=0x%04X\n", opcode, programCounter-1);
+             System.err.printf("unimplemented opcode: 0x%02X, PC=0x%04X\n", opcode, programCounter-1);
              cycles += 2;
              return;
         }
