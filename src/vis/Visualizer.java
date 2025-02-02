@@ -239,11 +239,11 @@ public class Visualizer extends JFrame {
         loadProgramButton.addActionListener(e -> {
            //unimplemented, in the future i plan to have some kind of file chooser and text editor to load programs
            JOptionPane.showMessageDialog(
-            this,
-            "Feature not implemented yet!",
-            "Information",
-            JOptionPane.INFORMATION_MESSAGE
-        );
+                this,
+                "Feature not implemented yet!",
+                "Information",
+                JOptionPane.INFORMATION_MESSAGE
+            );
     
         });
 
@@ -436,21 +436,25 @@ public class Visualizer extends JFrame {
 
     // the method highlights the current instruction in the memory dump area
     // TODO: when the memory dump area is resized and split into multiple lines, the highlighting doesn't work properly
+    // also when init the instruction is not highlighted ? 
     private void highlightCurrentInstruction() {
-        int pc = cpu.getPC(); // aktualna wartość Program Counter
+        int pc = cpu.getPC(); // get the current program counter value
         memoryDumpArea.getHighlighter().removeAllHighlights();
 
         try {
             int lineCount = memoryDumpArea.getLineCount();
 
             for (int i = 0; i < lineCount; i++) {
+
                 int startOffset = memoryDumpArea.getLineStartOffset(i);
                 int endOffset   = memoryDumpArea.getLineEndOffset(i);
                 
                 String line = memoryDumpArea.getText().substring(startOffset, endOffset).trim();
+
                 if (line.length() < 5) {
                     continue; 
                 }
+
 
                 String addressHex = line.substring(0, 4);
                 int lineStartAddr = Integer.parseInt(addressHex, 16);
@@ -461,19 +465,27 @@ public class Visualizer extends JFrame {
                     int highlightStart = startOffset + 6 + (3 * byteOffset);
 
                     int highlightEnd = highlightStart + 5;
-
+                    //to DEBUG
+                    // System.out.println(lineCount + " " + pc + " " + line + " " + highlightStart + " " + highlightEnd + " " + memoryDumpArea.getText().length());
+ 
                     memoryDumpArea.getHighlighter().addHighlight(
                         highlightStart,
                         highlightEnd,
                         new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
                     );
-
+              
                     break;
                 }
             }
         } catch (BadLocationException | NumberFormatException e) {
             e.printStackTrace();
-        };
+            JOptionPane.showMessageDialog(
+                this,
+                "Error while highlighting current instruction" + e.getMessage(),
+                "Error",
+                JOptionPane.INFORMATION_MESSAGE
+            );
+        }
     }
 
     public void visualize() {
@@ -497,6 +509,7 @@ public class Visualizer extends JFrame {
         SwingUtilities.invokeLater(() -> {
             Visualizer debugger = new Visualizer(cpu);
             debugger.setVisible(true);
+
         });
     }
 }
